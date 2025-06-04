@@ -1,5 +1,7 @@
+// lib/flutter_esim_platform_interface.dart
 import 'dart:async';
 
+import 'package:flutter_esim/flutter_esim_installation_event.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'flutter_esim_method_channel.dart';
@@ -25,12 +27,17 @@ abstract class FlutterEsimPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<bool> isSupportESim(List<String>? newer) {
+  // Updated method signature
+  Future<bool> isSupportESim() {
     throw UnimplementedError('isSupportESim() has not been implemented.');
   }
 
   Future<String> installEsimProfile(String profile) {
     throw UnimplementedError('installEsimProfile() has not been implemented.');
+  }
+
+  Stream<EsimInstallationEvent> installEsimEvent(String profile) {
+    throw UnimplementedError('installEsimEvent() has not been implemented.');
   }
 
   Future<String> instructions() {
