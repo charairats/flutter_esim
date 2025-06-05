@@ -96,6 +96,10 @@ class MethodChannelFlutterEsim extends FlutterEsimPlatform {
                   Exception('eSIM installation failed. Event: $event'));
               cleanUp();
               break;
+            case 'cancel': // for iOS
+              controller.add(event);
+              cleanUp();
+              break;
             case 'unsupport':
               controller.add(event);
               controller.addError(Exception(
