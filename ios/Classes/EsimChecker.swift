@@ -4,159 +4,97 @@
 //
 //  Created by Hien Nguyen on 29/02/2024.
 //
+//  Comment: This class provides functionalities to check for eSIM support
+//  and to initiate eSIM profile installation on iOS.
+//
 
 import Foundation
-import CoreTelephony
+import CoreTelephony // Required for eSIM functionalities
 
 @available(iOS 10.0, *)
 class EsimChecker: NSObject {
-    
-    
-    
-    let internalSupportedModels = [
-        
-        //iPhone 16
-        "iPhone17,1",
-        "iPhone17,2",
-        "iPhone17,3",
-        "iPhone17,4",
-        
-        //iPhone 15
-        "iPhone15,4", //15
-        "iPhone15,5", //15Plus
-        "iPhone16,1", //15Pro
-        "iPhone16,2", //15ProMax
-        
-        //iPhone 14
-        "iPhone14,7", //14
-        "iPhone14,8", //14Plus
-        "iPhone15,2", //14Pro
-        "iPhone15,3", //14ProMax
-        
-        //iPhone 13
-        "iPhone14,5", //13
-        "iPhone14,4", //13Mini
-        "iPhone14,2", //13Pro
-        "iPhone14,3", //13ProMax
-        
-        //iPhone 12
-        "iPhone13,2", //12
-        "iPhone13,1", //12Mini
-        "iPhone13,3", //12Pro
-        "iPhone13,4", //12ProMax
-        
-        //iPhone 11
-        "iPhone12,1", //11
-        "iPhone12,3", //11Pro
-        "iPhone12,5", //11ProMax
-        
-        //iPhone X
-        "iPhone11,2", //XS
-        "iPhone11,4", //XSMAX
-        "iPhone11,6", //XSMAX
-        "iPhone11,8", //XR
-        
-        //iPhone SE
-        "iPhone12,8", //SE2 2020
-        "iPhone14,6", //SE3 2022
-        
-        //iPad
-        "iPad6,8", //iPad Pro 1st Gen (12.9 inch, WiFi+Cellular)
-        "iPad6,12", //iPad 5th Gen (WiFi+Cellular)
-        "iPad7,2", //iPad Pro 2nd Gen (12.9 inch, WiFi+Cellular)
-        "iPad7,4", //iPad Pro 2nd Gen (10.5 inch, WiFi+Cellular)
-        "iPad7,6", //iPad 6th Gen (WiFi+Cellular)
-        "iPad7,12", //iPad 7th Gen (WiFi+Cellular)
-        "iPad8,3", //iPad Pro 3rd Gen (11 inch, WiFi+Cellular)
-        "iPad8,4", //iPad Pro 3rd Gen (11 inch, WiFi+Cellular, 1TB)
-        "iPad8,7", //iPad Pro 3rd Gen (12.9 inch, WiFi+Cellular)
-        "iPad8,8", //iPad Pro 3rd Gen (12.9 inch, WiFi+Cellular, 1TB)
-        "iPad8,10", //iPad Pro 4th Gen (11 inch, WiFi+Cellular)
-        "iPad8,12", //iPad Pro 4th Gen (12.9 inch, WiFi+Cellular)
-        "iPad11,2", //iPad mini 5th Gen (WiFi+Cellular)
-        "iPad11,4", //iPad Air 3rd Gen (WiFi+Cellular)
-        "iPad11,7", //iPad 8th Gen (WiFi+Cellular)
-        "iPad12,2", //iPad 9th Gen (WiFi+Cellular)
-        "iPad13,2", //iPad Air 4th Gen (WiFi+Cellular)
-        "iPad13,6", //iPad Pro 3rd Gen (11 inch, WiFi+Cellular)
-        "iPad13,7", //iPad Pro 3rd Gen (11 inch, WiFi+Cellular)
-        "iPad13,10", //iPad Pro 5th Gen (12.9 inch, WiFi+Cellular)
-        "iPad13,11", //iPad Pro 5th Gen (12.9 inch, WiFi+Cellular)
-        "iPad13,17", //iPad Air 5th Gen (WiFi+Cellular)
-        "iPad13,19", //iPad 10th Gen
-        "iPad14,2", //iPad mini 6th Gen (WiFi+Cellular)
-        "iPad14,4", //iPad Pro 4th Gen (11 inch)
-        "iPad14,6", //iPad Pro 6th Gen (12.9 inch)
-        
-    ]
-    
+
+    // Comment: This handler is responsible for sending events back to the Dart side.
+    // It should be injected by the main plugin class (FlutterEsimPlugin).
+    // Its 'send' method will need to be updated to accept a correlationId.
     public var handler: EventCallbackHandler?;
-    
-    
-    public var identifier: String = {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let mirror = Mirror(reflecting: systemInfo.machine)
-        
-        let identifier = mirror.children.reduce("") { identifier, element in
-            guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(UnicodeScalar(UInt8(value)))
-        }
-        return identifier
-    }()
-    
-    
-    func isSupportESim(supportedModels: [String]) -> Bool {
-        let newSupportedModels = internalSupportedModels + supportedModels;
-        for model in newSupportedModels {
-            if identifier.contains(model) {
-                return true
-            }
-        }
-        return false
-    }
-    
-    func installEsimProfile(address: String, matchingID: String?, oid: String?, confirmationCode: String?, iccid: String?, eid: String?) {
-        let ctpr = CTCellularPlanProvisioningRequest();
-        ctpr.address = address;
-        if((matchingID) != nil) {
-            ctpr.matchingID = matchingID;
-        }
-        if((oid) != nil) {
-            ctpr.oid = oid
-        }
-        if((confirmationCode) != nil) {
-            ctpr.confirmationCode = confirmationCode
-        }
-        if((iccid) != nil) {
-            ctpr.iccid = iccid
-        }
-        if((eid) != nil) {
-            ctpr.eid = eid
-        }
-        
+
+    // Comment: Checks if the device supports eSIM provisioning.
+    func isSupportESim() -> Bool {
         if #available(iOS 12.0, *) {
-            let ctcp =  CTCellularPlanProvisioning()
-            if(!ctcp.supportsCellularPlan()){
-                handler?.send("unsupport", [:])
+            let ctcp = CTCellularPlanProvisioning()
+            return ctcp.supportsCellularPlan()
+        } else {
+            print("LOG: eSIM support check: iOS version \(UIDevice.current.systemVersion) is older than 12.0. Reporting eSIM as unsupported by this check.")
+            return false
+        }
+    }
+
+    // Comment: Initiates the installation of an eSIM profile.
+    // Now includes 'correlationId' to be passed along with events.
+    // Note: The 'handler?.send' method signature is assumed to be updated in EventCallbackHandler
+    // to accept 'correlationId' as its first parameter.
+    func installEsimProfile(address: String, 
+                            matchingID: String?, 
+                            oid: String?, 
+                            confirmationCode: String?, 
+                            iccid: String?, 
+                            eid: String?, 
+                            correlationId: String?) { // Added correlationId parameter
+
+        if #available(iOS 12.0, *) {
+            let ctpr = CTCellularPlanProvisioningRequest();
+            ctpr.address = address;
+            
+            // Assign optional parameters if they are provided and not empty
+            if let unwrappedMatchingID = matchingID, !unwrappedMatchingID.isEmpty {
+                ctpr.matchingID = unwrappedMatchingID;
+            }
+            if let unwrappedOid = oid, !unwrappedOid.isEmpty {
+                ctpr.oid = unwrappedOid
+            }
+            if let unwrappedConfirmationCode = confirmationCode, !unwrappedConfirmationCode.isEmpty {
+                ctpr.confirmationCode = unwrappedConfirmationCode
+            }
+            if let unwrappedIccid = iccid, !unwrappedIccid.isEmpty {
+                ctpr.iccid = unwrappedIccid
+            }
+            if let unwrappedEid = eid, !unwrappedEid.isEmpty {
+                ctpr.eid = unwrappedEid
+            }
+
+            let ctcp = CTCellularPlanProvisioning()
+            
+            if !ctcp.supportsCellularPlan() {
+                print("LOG: installEsimProfile: Device does not support cellular plan provisioning (iOS 12+ check). CorrelationID: \(correlationId ?? "nil")")
+                // Assuming handler.send will be: send(correlationId: String?, eventName: String, body: Any)
+                handler?.send(correlationId: correlationId, eventName: "unsupport", body: ["reason": "Device does not support cellular plan provisioning."])
                 return;
             }
+            
+            print("LOG: Attempting to add eSIM plan with address: \(address), CorrelationID: \(correlationId ?? "nil")")
             ctcp.addPlan(with: ctpr) { (result) in
                 switch result {
                 case .unknown:
-                    self.handler?.send("unknown", [:])
+                    print("LOG: eSIM installation result: Unknown. CorrelationID: \(correlationId ?? "nil")")
+                    self.handler?.send(correlationId: correlationId, eventName: "unknown", body: [:])
                 case .fail:
-                    self.handler?.send("fail", [:])
+                    print("LOG: eSIM installation result: Fail. CorrelationID: \(correlationId ?? "nil")")
+                    self.handler?.send(correlationId: correlationId, eventName: "fail", body: [:])
                 case .success:
-                    self.handler?.send("success", [:])
-                case .cancel:
-                    self.handler?.send("cancel", [:])
+                    print("LOG: eSIM installation result: Success. CorrelationID: \(correlationId ?? "nil")")
+                    self.handler?.send(correlationId: correlationId, eventName: "success", body: [:])
+                case .cancel: // User cancelled the process via system UI
+                    print("LOG: eSIM installation result: Cancelled by user. CorrelationID: \(correlationId ?? "nil")")
+                    self.handler?.send(correlationId: correlationId, eventName: "cancel", body: [:])
                 @unknown default:
-                    self.handler?.send("unknown", [:])
+                    print("LOG: eSIM installation result: Unknown default case. CorrelationID: \(correlationId ?? "nil")")
+                    self.handler?.send(correlationId: correlationId, eventName: "unknown", body: ["reason": "Unknown default result from addPlan."])
                 }
             }
+        } else {
+            print("LOG: installEsimProfile: Attempted on iOS version older than 12.0. CorrelationID: \(correlationId ?? "nil")")
+            handler?.send(correlationId: correlationId, eventName: "unsupport", body: ["reason": "iOS 12.0 or higher is required to install eSIM profiles."])
         }
     }
-    
-    
 }
