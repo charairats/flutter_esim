@@ -45,7 +45,7 @@ class MethodChannelFlutterEsim extends FlutterEsimPlatform {
   ) {
     final controller = StreamController<EsimInstallationEvent>();
     StreamSubscription? eventSubscription;
-    final String correlationId = uuid.v7();
+    final String correlationId = uuid.v4();
 
     void cleanUp() {
       eventSubscription?.cancel();
